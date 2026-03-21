@@ -299,7 +299,7 @@ fn tkn_lockLevel name = (
         return false
     )
 
-    layer.isLocked = true
+    layer.Lock = true
     tkn_logInfo ("Level locked: " + name)
     return true
 )
@@ -318,7 +318,7 @@ fn tkn_unlockLevel name = (
         return false
     )
 
-    layer.isLocked = false
+    layer.Lock = false
     tkn_logInfo ("Level unlocked: " + name)
     return true
 )
@@ -357,7 +357,7 @@ fn tkn_showAllLevels = (
 
 -- -----------------------------------------------------------------------------
 -- tkn_layerStatus
--- Returns status of all level layers as array of #(name, isHidden, isLocked)
+-- Returns status of all level layers as array of #(name, isHidden, locked)
 -- -----------------------------------------------------------------------------
 
 fn tkn_layerStatus = (
@@ -367,7 +367,7 @@ fn tkn_layerStatus = (
     for n in TEKTON.levels do (
         local layer = LayerManager.getLayerFromName (tkn_getLayerName n[1])
         if layer != undefined then (
-            append result #(n[1], layer.isHidden, layer.isLocked)
+            append result #(n[1], layer.isHidden, layer.Lock)
         )
     )
 
