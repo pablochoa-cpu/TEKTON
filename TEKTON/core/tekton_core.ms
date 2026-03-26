@@ -122,7 +122,7 @@ fileIn (core_path + "tkn_queries.ms")
 fileIn (core_path + "tkn_colors.ms")
 fileIn (core_path + "tkn_undo.ms")
 fileIn (core_path + "tkn_tag.ms")
---fileIn (core_path + "tkn_extended.ms")
+fileIn (core_path + "tkn_extended.ms")
 --fileIn (core_path + "tkn_geometry.ms")
 --fileIn (core_path + "tkn_locale.ms")
 
