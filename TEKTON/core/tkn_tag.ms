@@ -2,55 +2,31 @@
 -- TEKTON Module: Tag
 -- File: tkn_tag.ms
 -- Depends on: tekton_core.ms, tkn_log.ms, tkn_properties.ms,
---             tkn_levels.ms, tkn_queries.ms
+--             tkn_levels.ms, tkn_queries.ms, tkn_undo.ms, tkn_colors.ms
 -- Block: 10
 -- =============================================================================
 
--- -----------------------------------------------------------------------------
--- tkn_tagObject
--- Main tagging function. Tags a single object with full BIM data.
--- Validates all data, generates ID, assigns to layer.
---
--- Parameters:
---   obj         -> scene object (required)
---   system      -> system name (required)
---   family      -> family name (required)
---   level       -> level name (required)
---   finish      -> surface finish (default "undefined")
---   phase       -> construction phase (default "new")
---   material    -> material description (default "")
---   description -> free text (default "")
---   level_end   -> end level for multi-level objects (default "")
--- -----------------------------------------------------------------------------
-
 fn tkn_tagObject obj system family level finish:"undefined" phase:"new" material:"" description:"" level_end:"" = (
 
-    -- -----------------------------------------------------------------
-    -- Step 1: validate object
-    -- -----------------------------------------------------------------
+    tkn_beginUndo "Tag Object"
 
+    -- Step 1: validate object
     if obj == undefined then (
         tkn_logError "tagObject: object is undefined."
+        tkn_cancelUndo()
         return false
     )
 
-    -- -----------------------------------------------------------------
     -- Step 2: validate all data
-    -- -----------------------------------------------------------------
-
     local valid = tkn_validateAll obj system family level finish phase
 
     if not valid then (
         tkn_logError ("tagObject: validation failed for '" + obj.name + "'.")
+        tkn_cancelUndo()
         return false
     )
 
-    -- -----------------------------------------------------------------
-    -- Step 3: check if object already has a TEKTON ID
-    -- If yes -> update, keep existing ID
-    -- If no  -> generate new ID
-    -- -----------------------------------------------------------------
-
+    -- Step 3: existing or new ID
     local existing_id = tkn_getProperty obj "id"
     local final_id    = ""
 
@@ -61,15 +37,13 @@ fn tkn_tagObject obj system family level finish:"undefined" phase:"new" material
         final_id = tkn_generateID system family
         if not (tkn_validateUniqueID final_id) then (
             tkn_logError "tagObject: could not generate unique ID."
+            tkn_cancelUndo()
             return false
         )
         tkn_logInfo ("tagObject: new object -> " + final_id)
     )
 
-    -- -----------------------------------------------------------------
     -- Step 4: write all BIM properties
-    -- -----------------------------------------------------------------
-
     tkn_setProperty obj "id"      final_id
     tkn_setProperty obj "system"  system
     tkn_setProperty obj "family"  family
@@ -82,47 +56,28 @@ fn tkn_tagObject obj system family level finish:"undefined" phase:"new" material
     if description != "" then tkn_setProperty obj "description" description
     if level_end   != "" then tkn_setProperty obj "level_end"   level_end
 
-    -- -----------------------------------------------------------------
-    -- Step 5: assign object to its level layer
-    -- -----------------------------------------------------------------
-
+    -- Step 5: assign to level layer
     tkn_assignObjectToLevel obj level
 
-    -- -----------------------------------------------------------------
-    -- Step 6: apply system wireframe color
-    -- -----------------------------------------------------------------
+    -- Step 6: apply system color
+    obj.wireColor = tkn_getSystemColor system
 
-    local sys_color = tkn_getSystemColor system
-    obj.wireColor   = sys_color
-
-    -- -----------------------------------------------------------------
     -- Step 7: check physical Z position
-    -- -----------------------------------------------------------------
-
     if not (tkn_checkPhysicalLevel obj) then (
         tkn_logWarn ("tagObject: '" + obj.name + "' may be at wrong height for level '" + level + "'.")
     )
 
-    -- -----------------------------------------------------------------
-    -- Step 8: rename object with its ID
-    -- -----------------------------------------------------------------
-
+    -- Step 8: rename object with ID
     obj.name = final_id
 
-    -- -----------------------------------------------------------------
-    -- Step 9: auto-save project
-    -- -----------------------------------------------------------------
-
+    -- Step 9: auto-save
     tkn_saveProject()
 
+    tkn_acceptUndo "Tag Object"
     tkn_logInfo ("tagObject: '" + final_id + "' tagged successfully.")
     return final_id
 )
 
--- -----------------------------------------------------------------------------
--- tkn_untagObject
--- Removes all TEKTON BIM data from an object.
--- Asks for confirmation before proceeding.
 -- -----------------------------------------------------------------------------
 
 fn tkn_untagObject obj = (
@@ -138,26 +93,23 @@ fn tkn_untagObject obj = (
 
     if not confirm then return false
 
+    tkn_beginUndo "Untag Object"
+
     tkn_clearProps obj
 
-    -- Move object back to default layer
     local default_layer = LayerManager.getLayerFromName "0"
     if default_layer != undefined then (
         default_layer.addNode obj
     )
 
-    -- Reset wirecolor to default gray
     obj.wireColor = color 150 150 150
 
+    tkn_acceptUndo "Untag Object"
     tkn_logInfo ("untagObject: BIM data removed from '" + obj.name + "'")
     tkn_saveProject()
     return true
 )
 
--- -----------------------------------------------------------------------------
--- tkn_tagSelection
--- Tags all currently selected objects with the same BIM data.
--- Most common workflow -- select in viewport then tag.
 -- -----------------------------------------------------------------------------
 
 fn tkn_tagSelection system family level finish:"undefined" phase:"new" material:"" description:"" = (
@@ -169,22 +121,15 @@ fn tkn_tagSelection system family level finish:"undefined" phase:"new" material:
 
     tkn_logInfo ("tagSelection: tagging " + selection.count as string + " selected objects...")
 
-    local objs = #()
-    for obj in selection do append objs obj
-
-    local ids      = #()
-    local ok_count = 0
+    local objs       = #()
+    local ids        = #()
+    local ok_count   = 0
     local fail_count = 0
 
+    for obj in selection do append objs obj
+
     for obj in objs do (
-        local id = tkn_tagObject obj \
-            system:system \
-            family:family \
-            level:level \
-            finish:finish \
-            phase:phase \
-            material:material \
-            description:description
+        local id = tkn_tagObject obj system family level
 
         if id != false then (
             append ids id
@@ -199,10 +144,6 @@ fn tkn_tagSelection system family level finish:"undefined" phase:"new" material:
 )
 
 -- -----------------------------------------------------------------------------
--- tkn_tagMultiple
--- Tags an array of objects with the same BIM data.
--- Used by modeler scripts that generate geometry automatically.
--- -----------------------------------------------------------------------------
 
 fn tkn_tagMultiple objs system family level finish:"undefined" phase:"new" material:"" description:"" = (
 
@@ -216,14 +157,7 @@ fn tkn_tagMultiple objs system family level finish:"undefined" phase:"new" mater
     local fail_count = 0
 
     for obj in objs do (
-        local id = tkn_tagObject obj \
-            system:system \
-            family:family \
-            level:level \
-            finish:finish \
-            phase:phase \
-            material:material \
-            description:description
+        local id = tkn_tagObject obj system family level
 
         if id != false then (
             append ids id
