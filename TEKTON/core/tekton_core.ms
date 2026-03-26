@@ -127,6 +127,11 @@ fileIn (core_path + "tkn_geometry.ms")
 fileIn (core_path + "tkn_locale.ms")
 fileIn (core_path + "tkn_checker.ms")
 fileIn (core_path + "tkn_compute.ms")
+fileIn (core_path + "tkn_ui.ms")
+fileIn (core_path + "tkn_ui_systems.ms")
+
+
+tkn_showUI()
 
 print "TEKTON: All modules loaded."
 print ("TEKTON: Version " + TEKTON.version + " ready.")
