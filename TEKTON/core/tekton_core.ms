@@ -125,6 +125,7 @@ fileIn (core_path + "tkn_tag.ms")
 fileIn (core_path + "tkn_extended.ms")
 fileIn (core_path + "tkn_geometry.ms")
 fileIn (core_path + "tkn_locale.ms")
+fileIn (core_path + "tkn_checker.ms")
 
 print "TEKTON: All modules loaded."
 print ("TEKTON: Version " + TEKTON.version + " ready.")
