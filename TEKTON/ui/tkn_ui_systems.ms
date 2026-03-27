@@ -3,6 +3,8 @@
 -- File: tkn_ui_systems.ms
 -- =============================================================================
 
+global tkn_ui_sys_isolated = ""
+
 fn tkn_ui_onSysChanged s e = (
     if tkn_ui_cb_system == undefined then return false
     local sel_sys = tkn_ui_cb_system.SelectedItem
@@ -13,6 +15,127 @@ fn tkn_ui_onSysChanged s e = (
         )
     )
     if tkn_ui_cb_family.Items.Count > 0 then tkn_ui_cb_family.SelectedIndex = 0
+)
+
+fn tkn_ui_getSelectedSystems = (
+    local systems = #()
+    local sel = #()
+    for obj in selection do append sel obj
+    if sel.count == 0 and tkn_selected_obj != undefined then append sel tkn_selected_obj
+    for obj in sel do (
+        if not (tkn_isTekton obj) then continue
+        local sys = tkn_getProperty obj "system"
+        if sys == undefined then continue
+        local found = false
+        for s in systems do if s == sys then found = true
+        if not found then append systems sys
+    )
+    return systems
+)
+
+fn tkn_ui_onSelectSystem s e = (
+    local systems = tkn_ui_getSelectedSystems()
+    if systems.count == 0 then return false
+    local result = #()
+    for sys in systems do (
+        local objs = tkn_filterBySystem sys
+        for obj in objs do append result obj
+    )
+    if result.count > 0 then select result
+)
+
+fn tkn_ui_onFreezeSystem s e = (
+    local systems = tkn_ui_getSelectedSystems()
+    if systems.count == 0 then return false
+    local all_objs = #()
+    for sys in systems do (
+        local objs = tkn_filterBySystem sys
+        for obj in objs do append all_objs obj
+    )
+    if all_objs.count == 0 then return false
+    local first_frozen = all_objs[1].isFrozen
+    for obj in all_objs do obj.isFrozen = not first_frozen
+    if not first_frozen then (
+        s.BackColor = TKN_C_YELLOW; s.ForeColor = TKN_C_BG
+    ) else (
+        s.BackColor = TKN_C_BG; s.ForeColor = TKN_C_ACCENT
+    )
+    tkn_logInfo ("Toggle freeze: " + systems.count as string + " systems")
+)
+
+fn tkn_ui_onIsolateSystem s e = (
+    local systems = tkn_ui_getSelectedSystems()
+    if systems.count == 0 then return false
+    local key = ""
+    for sys in systems do key = key + sys
+    if tkn_ui_sys_isolated == key then (
+        for obj in objects do (
+            if tkn_isTekton obj and (findString obj.name "TKN_LEVEL_") == undefined then (
+                obj.isHidden = false
+            )
+        )
+        tkn_ui_sys_isolated = ""
+        s.BackColor = TKN_C_BG; s.ForeColor = TKN_C_ACCENT
+        tkn_logInfo "Unisolated."
+    ) else (
+        for obj in objects do (
+            if tkn_isTekton obj and (findString obj.name "TKN_LEVEL_") == undefined then (
+                local obj_sys = tkn_getProperty obj "system"
+                local in_sel = false
+                for sys in systems do if (toLower obj_sys) == (toLower sys) then in_sel = true
+                obj.isHidden = not in_sel
+            )
+        )
+        tkn_ui_sys_isolated = key
+        s.BackColor = TKN_C_YELLOW; s.ForeColor = TKN_C_BG
+        tkn_logInfo ("Isolated: " + systems.count as string + " systems")
+    )
+)
+
+fn tkn_ui_onHideSystem s e = (
+    local systems = tkn_ui_getSelectedSystems()
+    if systems.count == 0 then return false
+    local all_objs = #()
+    for sys in systems do (
+        local objs = tkn_filterBySystem sys
+        for obj in objs do append all_objs obj
+    )
+    if all_objs.count == 0 then return false
+    local first_hidden = all_objs[1].isHidden
+    for obj in all_objs do obj.isHidden = not first_hidden
+    if not first_hidden then (
+        s.BackColor = TKN_C_YELLOW; s.ForeColor = TKN_C_BG
+    ) else (
+        s.BackColor = TKN_C_BG; s.ForeColor = TKN_C_ACCENT
+    )
+    tkn_logInfo ("Toggle hide: " + systems.count as string + " systems")
+)
+
+fn tkn_ui_onColorSystem s e = (
+    local systems = tkn_ui_getSelectedSystems()
+    if systems.count == 0 then return false
+    local all_objs = #()
+    for sys in systems do (
+        local objs = tkn_filterBySystem sys
+        for obj in objs do append all_objs obj
+    )
+    if all_objs.count == 0 then return false
+    local first_sys = tkn_getProperty all_objs[1] "system"
+    local sys_color = tkn_getSystemColor first_sys
+    local first = all_objs[1].wireColor
+    local is_sys_color = (first.r == sys_color.r and first.g == sys_color.g and first.b == sys_color.b)
+    local gray = color 150 150 150
+    for obj in all_objs do (
+        local obj_sys = tkn_getProperty obj "system"
+        local obj_col = tkn_getSystemColor obj_sys
+        obj.wireColor = if is_sys_color then gray else obj_col
+    )
+    if not is_sys_color then (
+        s.BackColor = TKN_C_YELLOW; s.ForeColor = TKN_C_BG
+    ) else (
+        s.BackColor = TKN_C_BG; s.ForeColor = TKN_C_ACCENT
+    )
+    tkn_logInfo ("Toggle color: " + systems.count as string + " systems")
 )
 
 fn tkn_ui_onTagClick s e = (
@@ -62,14 +185,10 @@ fn tkn_ui_onLauncherClick s e = (
     try (
         local sys_name = s.Tag as string
         if sys_name == undefined or sys_name == "" then return false
-
-        -- Capture selected object BEFORE any select call
         local cur_sel = tkn_selected_obj
-
         if cur_sel != undefined and (findString cur_sel.name "TKN_LEVEL_") == undefined then (
             local confirm = queryBox ("Add '" + cur_sel.name + "' to system:\n" + sys_name + "?") title:"TEKTON"
             if confirm then (
-                -- Get first family of target system
                 local fam = ""
                 for i = 1 to TEKTON.family_names.count do (
                     if (toLower TEKTON.family_systems[i]) == (toLower sys_name) then (
@@ -84,13 +203,10 @@ fn tkn_ui_onLauncherClick s e = (
                 return true
             )
         )
-
-        -- No object selected: select all of this system
         global tkn_ui_sel_lock = true
         local objs = tkn_filterBySystem sys_name
         if objs.count > 0 then select objs
         tkn_ui_sel_lock = false
-
     ) catch()
 )
 
@@ -109,15 +225,11 @@ fn tkn_ui_buildSystems panel = (
     local font_small = dotNetObject "System.Drawing.Font" "Courier New" 7
     local font_btn   = dotNetObject "System.Drawing.Font" "Courier New" 7 ((dotNetClass "System.Drawing.FontStyle").Bold)
 
-    -- Preserve dropdown state
     local prev_sys = try (if tkn_ui_cb_system != undefined then tkn_ui_cb_system.SelectedIndex else 0) catch(0)
     local prev_lvl = try (if tkn_ui_cb_level  != undefined then tkn_ui_cb_level.SelectedIndex  else 0) catch(0)
     local prev_fin = try (if tkn_ui_cb_finish != undefined then tkn_ui_cb_finish.SelectedIndex else 0) catch(0)
 
-    -- =========================================================================
     -- LEFT PANEL
-    -- =========================================================================
-
     local pnl_left = dotNetObject DN_Panel
     pnl_left.Location  = dotNetObject "System.Drawing.Point" 0 0
     pnl_left.Size      = dotNetObject "System.Drawing.Size" 340 460
@@ -221,7 +333,6 @@ fn tkn_ui_buildSystems panel = (
     pnl_left.Controls.Add tkn_ui_cb_finish
     y += 26
 
-    -- Populate family based on current system
     local cur_sys = tkn_ui_cb_system.SelectedItem
     tkn_ui_cb_family.Items.Clear()
     for i = 1 to TEKTON.family_names.count do (
@@ -231,7 +342,7 @@ fn tkn_ui_buildSystems panel = (
     )
     if tkn_ui_cb_family.Items.Count > 0 then tkn_ui_cb_family.SelectedIndex = 0
 
-    -- Buttons
+    -- TAG buttons
     local btn_tag = dotNetObject DN_Button
     btn_tag.Text="[ TAG ]"; btn_tag.Font=font_bold
     btn_tag.FlatStyle=DN_Flat.Flat
@@ -298,10 +409,31 @@ fn tkn_ui_buildSystems panel = (
         pnl_left.Controls.Add lns
     )
 
-    -- =========================================================================
-    -- RIGHT PANEL - 3x7 launcher grid
-    -- =========================================================================
+    -- ACTION BUTTONS
+    local sel_systems = tkn_ui_getSelectedSystems()
+    local has_sel     = sel_systems.count > 0
+    local act_labels = #("SELECT", "FREEZE", "ISOLATE", "HIDE", "COLOR")
+    local act_fns    = #(tkn_ui_onSelectSystem, tkn_ui_onFreezeSystem, tkn_ui_onIsolateSystem, tkn_ui_onHideSystem, tkn_ui_onColorSystem)
+    local act_w      = 62
+    local act_gap    = 3
+    local act_y      = 432
 
+    for i = 1 to 5 do (
+        local abtn = dotNetObject DN_Button
+        abtn.Text      = act_labels[i]
+        abtn.Font      = font_small
+        abtn.FlatStyle = DN_Flat.Flat
+        abtn.FlatAppearance.BorderColor = if has_sel then TKN_C_ACCENT else TKN_C_BORDER
+        abtn.BackColor = TKN_C_BG
+        abtn.ForeColor = if has_sel then TKN_C_ACCENT else TKN_C_TEXT2
+        abtn.Location  = dotNetObject "System.Drawing.Point" (act_gap + (i-1) * (act_w + act_gap)) act_y
+        abtn.Size      = dotNetObject "System.Drawing.Size" act_w 22
+        abtn.Enabled   = has_sel
+        pnl_left.Controls.Add abtn
+        if has_sel then dotNet.addEventHandler abtn "Click" act_fns[i]
+    )
+
+    -- RIGHT PANEL - 3x7 launcher grid
     local pnl_right = dotNetObject DN_Panel
     pnl_right.Location  = dotNetObject "System.Drawing.Point" 342 0
     pnl_right.Size      = dotNetObject "System.Drawing.Size" 238 460
@@ -316,7 +448,6 @@ fn tkn_ui_buildSystems panel = (
     pnl_right.Controls.Add lbl_r
 
     local sys_labels = #("STRUCT","STEEL","MASONRY","FOUND","INSUL","FLOOR","PLASTER","CLAD","ROOF","OPENINGS","METAL","PLUMBING","DRAINAGE","ELEC","GAS","SITE","EQUIP","VEGET","GENERIC")
-
     local btn_w   = 74
     local btn_h   = 56
     local gap     = 3
@@ -330,11 +461,10 @@ fn tkn_ui_buildSystems panel = (
         local sc       = tkn_getSystemColor sys
         local dc       = (dotNetClass "System.Drawing.Color").FromArgb sc.r sc.g sc.b
         local dim      = (dotNetClass "System.Drawing.Color").FromArgb (sc.r/5) (sc.g/5) (sc.b/5)
-
-        local col_i = mod (i-1) 3
-        local row_i = (i-1) / 3
-        local bx    = gap + col_i * (btn_w + gap)
-        local btn_y = start_y + row_i * (btn_h + gap)
+        local col_i    = mod (i-1) 3
+        local row_i    = (i-1) / 3
+        local bx       = gap + col_i * (btn_w + gap)
+        local btn_y    = start_y + row_i * (btn_h + gap)
 
         local btn = dotNetObject DN_Button
         btn.Text      = (lbl + "\n" + (if has_objs then ("[" + objs.count as string + "]") else "---"))
@@ -345,10 +475,8 @@ fn tkn_ui_buildSystems panel = (
         btn.ForeColor = if has_objs then dc else TKN_C_TEXT2
         btn.Location  = dotNetObject "System.Drawing.Point" bx btn_y
         btn.Size      = dotNetObject "System.Drawing.Size" btn_w btn_h
-        -- FIX: Tag guarda el sistema correctamente como objeto String independiente
         btn.Tag       = dotNetObject "System.String" (copy sys)
         pnl_right.Controls.Add btn
-
         dotNet.addEventHandler btn "Click" tkn_ui_onLauncherClick
     )
 )
