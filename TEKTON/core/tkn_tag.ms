@@ -28,11 +28,25 @@ fn tkn_tagObject obj system family level finish:"undefined" phase:"new" material
 
     -- Step 3: existing or new ID
     local existing_id = tkn_getProperty obj "id"
-    local final_id    = ""
+    local final_id    = tkn_generateID system family
+    if existing_id != undefined then (
+        tkn_logInfo ("tagObject: re-tagging -> new ID " + final_id)
+    ) else (
+        if not (tkn_validateUniqueID final_id) then (
+            tkn_logError "tagObject: could not generate unique ID."
+            tkn_cancelUndo()
+            return false
+        )
+        tkn_logInfo ("tagObject: new object -> " + final_id)
+    )
 
     if existing_id != undefined then (
-        final_id = existing_id
-        tkn_logInfo ("tagObject: updating existing object -> " + final_id)
+        -- Re-tagging: generate new ID for new system/family
+        local old_sys = tkn_getProperty obj "system"
+        if (toLower old_sys) != (toLower system) or true then (
+            final_id = tkn_generateID system family
+            tkn_logInfo ("tagObject: re-tagging -> new ID " + final_id)
+        )
     ) else (
         final_id = tkn_generateID system family
         if not (tkn_validateUniqueID final_id) then (
