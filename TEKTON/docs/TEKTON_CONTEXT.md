@@ -74,3 +74,18 @@ drainage, electrical, gas, site_works, equipment, vegetation, generic
 
 ## Proximo paso
 tkn_compute.ms — computos por sistema, area, volumen, longitud, exportacion CSV
+
+## Módulos completados
+... (agregar tkn_ui.ms y tkn_ui_systems.ms)
+
+## Próximo paso
+- Verificar tkn_levels.ms en carpeta de Max (tkn_createLevelPlane undefined)
+- tkn_ui_levels.ms
+- tkn_ui_checker.ms
+- tkn_ui_compute.ms
+- tkn_ui_log.ms
+- tkn_ui_settings.ms
+
+## Fixes UI pendientes
+- Botón cruce en launcher (copy sys fix aplicado)
+- Inspector funciona con callback manual, verificar registro automático

@@ -345,7 +345,8 @@ fn tkn_ui_buildSystems panel = (
         btn.ForeColor = if has_objs then dc else TKN_C_TEXT2
         btn.Location  = dotNetObject "System.Drawing.Point" bx btn_y
         btn.Size      = dotNetObject "System.Drawing.Size" btn_w btn_h
-        btn.Tag       = dotNetObject "System.String" sys
+        -- FIX: Tag guarda el sistema correctamente como objeto String independiente
+        btn.Tag       = dotNetObject "System.String" (copy sys)
         pnl_right.Controls.Add btn
 
         dotNet.addEventHandler btn "Click" tkn_ui_onLauncherClick
