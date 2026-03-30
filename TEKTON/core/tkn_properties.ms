@@ -141,31 +141,55 @@ fn tkn_validateSystem system = (
     return false
 )
 
-fn tkn_validateFamily family system = (
+-- tkn_properties.ms — Fix validacion family
 
-    local found   = false
-    local correct = false
-
-    for i = 1 to TEKTON.family_names.count do (
-        if (toLower TEKTON.family_names[i]) == (toLower family) then (
-            found = true
-            if (toLower TEKTON.family_systems[i]) == (toLower system) then (
-                correct = true
+fn tkn_validateFamily family system =
+(
+    try
+    (
+        if family == undefined then
+        (
+            tkn_logError "Family is undefined."
+            return false
+        )
+        
+        local family_str = family as string
+        local system_str = system as string
+        local found = false
+        local correct = false
+        
+        for i = 1 to TEKTON.family_names.count do
+        (
+            local current_fam = TEKTON.family_names[i] as string
+            if (toLower current_fam) == (toLower family_str) then
+            (
+                found = true
+                local fam_sys = TEKTON.family_systems[i] as string
+                if fam_sys == system_str then
+                    correct = true
+                exit
             )
         )
+        
+        if not found then
+        (
+            tkn_logError ("Family '" + family_str + "' is not valid.")
+            return false
+        )
+        
+        if not correct then
+        (
+            tkn_logError ("Family '" + family_str + "' does not belong to system '" + system_str + "'.")
+            return false
+        )
+        
+        return true
     )
-
-    if not found then (
-        tkn_logError ("Unknown family: '" + family + "'. Add it to families.cfg.")
+    catch
+    (
+        tkn_logError ("validateFamily error: " + (getCurrentException()))
         return false
     )
-
-    if not correct then (
-        tkn_logError ("Family '" + family + "' does not belong to system '" + system + "'.")
-        return false
-    )
-
-    return true
 )
 
 fn tkn_validateLevel level = (

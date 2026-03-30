@@ -1,484 +1,577 @@
--- =============================================================================
--- TEKTON UI - Tab Systems
--- File: tkn_ui_systems.ms
--- =============================================================================
+-- tkn_ui_systems.ms
+-- SYSTEMS Tab para TEKTON UI
 
-global tkn_ui_sys_isolated = ""
-
-fn tkn_ui_onSysChanged s e = (
-    if tkn_ui_cb_system == undefined then return false
-    local sel_sys = tkn_ui_cb_system.SelectedItem
-    tkn_ui_cb_family.Items.Clear()
-    for i = 1 to TEKTON.family_names.count do (
-        if (toLower TEKTON.family_systems[i]) == (toLower sel_sys) then (
-            tkn_ui_cb_family.Items.Add TEKTON.family_names[i]
-        )
-    )
-    if tkn_ui_cb_family.Items.Count > 0 then tkn_ui_cb_family.SelectedIndex = 0
-)
-
-fn tkn_ui_getSelectedSystems = (
-    local systems = #()
-    local sel = #()
-    for obj in selection do append sel obj
-    if sel.count == 0 and tkn_selected_obj != undefined then append sel tkn_selected_obj
-    for obj in sel do (
-        if not (tkn_isTekton obj) then continue
-        local sys = tkn_getProperty obj "system"
-        if sys == undefined then continue
-        local found = false
-        for s in systems do if s == sys then found = true
-        if not found then append systems sys
-    )
-    return systems
-)
-
-fn tkn_ui_onSelectSystem s e = (
-    local systems = tkn_ui_getSelectedSystems()
-    if systems.count == 0 then return false
-    local result = #()
-    for sys in systems do (
-        local objs = tkn_filterBySystem sys
-        for obj in objs do append result obj
-    )
-    if result.count > 0 then select result
-)
-
-fn tkn_ui_onFreezeSystem s e = (
-    local systems = tkn_ui_getSelectedSystems()
-    if systems.count == 0 then return false
-    local all_objs = #()
-    for sys in systems do (
-        local objs = tkn_filterBySystem sys
-        for obj in objs do append all_objs obj
-    )
-    if all_objs.count == 0 then return false
-    local first_frozen = all_objs[1].isFrozen
-    for obj in all_objs do obj.isFrozen = not first_frozen
-    if not first_frozen then (
-        s.BackColor = TKN_C_YELLOW; s.ForeColor = TKN_C_BG
-    ) else (
-        s.BackColor = TKN_C_BG; s.ForeColor = TKN_C_ACCENT
-    )
-    tkn_logInfo ("Toggle freeze: " + systems.count as string + " systems")
-)
-
-fn tkn_ui_onIsolateSystem s e = (
-    local systems = tkn_ui_getSelectedSystems()
-    if systems.count == 0 then return false
-    local key = ""
-    for sys in systems do key = key + sys
-    if tkn_ui_sys_isolated == key then (
-        for obj in objects do (
-            if tkn_isTekton obj and (findString obj.name "TKN_LEVEL_") == undefined then (
-                obj.isHidden = false
-            )
-        )
-        tkn_ui_sys_isolated = ""
-        s.BackColor = TKN_C_BG; s.ForeColor = TKN_C_ACCENT
-        tkn_logInfo "Unisolated."
-    ) else (
-        for obj in objects do (
-            if tkn_isTekton obj and (findString obj.name "TKN_LEVEL_") == undefined then (
-                local obj_sys = tkn_getProperty obj "system"
-                local in_sel = false
-                for sys in systems do if (toLower obj_sys) == (toLower sys) then in_sel = true
-                obj.isHidden = not in_sel
-            )
-        )
-        tkn_ui_sys_isolated = key
-        s.BackColor = TKN_C_YELLOW; s.ForeColor = TKN_C_BG
-        tkn_logInfo ("Isolated: " + systems.count as string + " systems")
-    )
-)
-
-fn tkn_ui_onHideSystem s e = (
-    local systems = tkn_ui_getSelectedSystems()
-    if systems.count == 0 then return false
-    local all_objs = #()
-    for sys in systems do (
-        local objs = tkn_filterBySystem sys
-        for obj in objs do append all_objs obj
-    )
-    if all_objs.count == 0 then return false
-    local first_hidden = all_objs[1].isHidden
-    for obj in all_objs do obj.isHidden = not first_hidden
-    if not first_hidden then (
-        s.BackColor = TKN_C_YELLOW; s.ForeColor = TKN_C_BG
-    ) else (
-        s.BackColor = TKN_C_BG; s.ForeColor = TKN_C_ACCENT
-    )
-    tkn_logInfo ("Toggle hide: " + systems.count as string + " systems")
-)
-
-fn tkn_ui_onColorSystem s e = (
-    local systems = tkn_ui_getSelectedSystems()
-    if systems.count == 0 then return false
-    local all_objs = #()
-    for sys in systems do (
-        local objs = tkn_filterBySystem sys
-        for obj in objs do append all_objs obj
-    )
-    if all_objs.count == 0 then return false
-    local first_sys = tkn_getProperty all_objs[1] "system"
-    local sys_color = tkn_getSystemColor first_sys
-    local first = all_objs[1].wireColor
-    local is_sys_color = (first.r == sys_color.r and first.g == sys_color.g and first.b == sys_color.b)
-    local gray = color 150 150 150
-    for obj in all_objs do (
-        local obj_sys = tkn_getProperty obj "system"
-        local obj_col = tkn_getSystemColor obj_sys
-        obj.wireColor = if is_sys_color then gray else obj_col
-    )
-    if not is_sys_color then (
-        s.BackColor = TKN_C_YELLOW; s.ForeColor = TKN_C_BG
-    ) else (
-        s.BackColor = TKN_C_BG; s.ForeColor = TKN_C_ACCENT
-    )
-    tkn_logInfo ("Toggle color: " + systems.count as string + " systems")
-)
-
-fn tkn_ui_onTagClick s e = (
-    local to_tag   = #()
-    local to_retag = #()
-    for obj in selection do (
-        if (findString obj.name "TKN_LEVEL_") != undefined then continue
-        if tkn_isTekton obj then (append to_retag obj) else (append to_tag obj)
-    )
-    if to_retag.count > 0 then (
-        local confirm = queryBox (to_retag.count as string + " object(s) already tagged.\nOverwrite BIM data?") title:"TEKTON"
-        if confirm then for obj in to_retag do append to_tag obj
-    )
-    if to_tag.count == 0 then (
-        messageBox "No valid objects to tag." title:"TEKTON"
-        return false
-    )
-    local sys = tkn_ui_cb_system.SelectedItem
-    local fam = tkn_ui_cb_family.SelectedItem
-    local lvl = tkn_ui_cb_level.SelectedItem
-    local fin = tkn_ui_cb_finish.SelectedItem
-    tkn_tagMultiple to_tag sys fam lvl finish:fin
-    tkn_ui_loadTab 1
-)
-
-fn tkn_ui_onExistingClick s e = (
-    local untagged = #()
-    for obj in objects do (
-        if not (tkn_isTekton obj) and (findString obj.name "TKN_") == undefined then (
-            append untagged obj
-        )
-    )
-    if untagged.count == 0 then (
-        messageBox "No untagged objects in scene." title:"TEKTON"
-    ) else (
-        select untagged
-        messageBox (untagged.count as string + " untagged objects selected.\nSet System/Family/Level and click TAG.") title:"TEKTON"
-    )
-)
-
-fn tkn_ui_onTagByNameClick s e = (
-    local result = selectByName caption:"TEKTON - Select objects to tag" showHidden:false
-    if result != undefined and result.count > 0 then select result
-)
-
-fn tkn_ui_onLauncherClick s e = (
-    try (
-        local sys_name = s.Tag as string
-        if sys_name == undefined or sys_name == "" then return false
-        local cur_sel = tkn_selected_obj
-        if cur_sel != undefined and (findString cur_sel.name "TKN_LEVEL_") == undefined then (
-            local confirm = queryBox ("Add '" + cur_sel.name + "' to system:\n" + sys_name + "?") title:"TEKTON"
-            if confirm then (
-                local fam = ""
-                for i = 1 to TEKTON.family_names.count do (
-                    if (toLower TEKTON.family_systems[i]) == (toLower sys_name) then (
-                        fam = TEKTON.family_names[i]
-                        exit
+try
+(
+    global tkn_ui_systems_tab
+    global tkn_ui_cb_system
+    global tkn_ui_cb_family
+    global tkn_ui_cb_level
+    global tkn_ui_cb_finish
+    global tkn_ui_inspector_panel
+    global tkn_ui_launcher_panel
+    global tkn_selected_obj
+    global tkn_ui_sel_lock = false
+    
+    global prev_sys = 1
+    global prev_fam = 1
+    global prev_lvl = 1
+    global prev_fin = 1
+    
+    global tkn_ui_onSelectionChanged
+    global tkn_ui_onTagClick
+    global tkn_ui_onTagByNameClick
+    global tkn_ui_onExistingClick
+    global tkn_ui_onActionClick
+    
+    fn tkn_ui_rebuildFamilyDropdown sys_name =
+    (
+        try
+        (
+            if tkn_ui_cb_family != undefined then
+            (
+                tkn_ui_cb_family.items.clear()
+                local fam_list = #()
+                if sys_name != "" and sys_name != undefined then
+                (
+                    for i = 1 to TEKTON.family_systems.count do
+                    (
+                        if (TEKTON.family_systems[i] as string) == sys_name then
+                            append fam_list (TEKTON.family_names[i] as string)
                     )
                 )
-                if fam == "" then fam = "generic"
-                local lvl = if tkn_ui_cb_level != undefined then tkn_ui_cb_level.SelectedItem else "ground_floor"
-                tkn_tagObject cur_sel sys_name fam lvl
-                tkn_ui_loadTab 1
-                return true
+                for f in fam_list do tkn_ui_cb_family.items.add f
+                if tkn_ui_cb_family.items.count > 0 then
+                (
+                    if prev_fam <= tkn_ui_cb_family.items.count then
+                        tkn_ui_cb_family.selectedIndex = prev_fam - 1
+                    else
+                        tkn_ui_cb_family.selectedIndex = 0
+                )
             )
         )
-        global tkn_ui_sel_lock = true
-        local objs = tkn_filterBySystem sys_name
-        if objs.count > 0 then select objs
-        tkn_ui_sel_lock = false
-    ) catch()
-)
-
--- =============================================================================
-
-fn tkn_ui_buildSystems panel = (
-
-    local DN_Label  = dotNetClass "System.Windows.Forms.Label"
-    local DN_Button = dotNetClass "System.Windows.Forms.Button"
-    local DN_Flat   = dotNetClass "System.Windows.Forms.FlatStyle"
-    local DN_CB     = dotNetClass "System.Windows.Forms.ComboBox"
-    local DN_Panel  = dotNetClass "System.Windows.Forms.Panel"
-
-    local font_mono  = dotNetObject "System.Drawing.Font" "Courier New" 8
-    local font_bold  = dotNetObject "System.Drawing.Font" "Courier New" 8 ((dotNetClass "System.Drawing.FontStyle").Bold)
-    local font_small = dotNetObject "System.Drawing.Font" "Courier New" 7
-    local font_btn   = dotNetObject "System.Drawing.Font" "Courier New" 7 ((dotNetClass "System.Drawing.FontStyle").Bold)
-
-    local prev_sys = try (if tkn_ui_cb_system != undefined then tkn_ui_cb_system.SelectedIndex else 0) catch(0)
-    local prev_lvl = try (if tkn_ui_cb_level  != undefined then tkn_ui_cb_level.SelectedIndex  else 0) catch(0)
-    local prev_fin = try (if tkn_ui_cb_finish != undefined then tkn_ui_cb_finish.SelectedIndex else 0) catch(0)
-
-    -- LEFT PANEL
-    local pnl_left = dotNetObject DN_Panel
-    pnl_left.Location  = dotNetObject "System.Drawing.Point" 0 0
-    pnl_left.Size      = dotNetObject "System.Drawing.Size" 340 460
-    pnl_left.BackColor = TKN_C_BG2
-    panel.Controls.Add pnl_left
-
-    local y = 8
-
-    -- SYSTEMS OVERVIEW
-    local lbl_sec1 = dotNetObject DN_Label
-    lbl_sec1.Text      = "-- SYSTEMS OVERVIEW --"
-    lbl_sec1.Font      = font_bold
-    lbl_sec1.ForeColor = TKN_C_ACCENT
-    lbl_sec1.BackColor = TKN_C_BG2
-    lbl_sec1.Location  = dotNetObject "System.Drawing.Point" 8 y
-    lbl_sec1.Size      = dotNetObject "System.Drawing.Size" 324 16
-    pnl_left.Controls.Add lbl_sec1
-    y += 20
-
-    tkn_listAll()
-    for sys in TEKTON.valid_systems do (
-        local objs = tkn_filterBySystem sys
-        if objs.count == 0 then continue
-        local sc = tkn_getSystemColor sys
-        local dc = (dotNetClass "System.Drawing.Color").FromArgb sc.r sc.g sc.b
-        local sw = dotNetObject DN_Label
-        sw.BackColor = dc
-        sw.Location  = dotNetObject "System.Drawing.Point" 8 (y+2)
-        sw.Size      = dotNetObject "System.Drawing.Size" 10 11
-        pnl_left.Controls.Add sw
-        local ls = dotNetObject DN_Label
-        ls.Text      = (sys + "  [" + objs.count as string + "]")
-        ls.Font      = font_mono
-        ls.ForeColor = TKN_C_TEXT
-        ls.BackColor = TKN_C_BG2
-        ls.Location  = dotNetObject "System.Drawing.Point" 22 y
-        ls.Size      = dotNetObject "System.Drawing.Size" 310 15
-        pnl_left.Controls.Add ls
-        y += 15
+        catch (tkn_logError ("rebuildFamilyDropdown error: " + (getCurrentException())))
     )
-    y += 8
-
-    -- TAG SELECTION
-    local lbl_sec2 = dotNetObject DN_Label
-    lbl_sec2.Text      = "-- TAG SELECTION --"
-    lbl_sec2.Font      = font_bold
-    lbl_sec2.ForeColor = TKN_C_ACCENT
-    lbl_sec2.BackColor = TKN_C_BG2
-    lbl_sec2.Location  = dotNetObject "System.Drawing.Point" 8 y
-    lbl_sec2.Size      = dotNetObject "System.Drawing.Size" 324 16
-    pnl_left.Controls.Add lbl_sec2
-    y += 20
-
-    fn mkLbl p t f fg bg px py pw = (
-        local l = dotNetObject "System.Windows.Forms.Label"
-        l.Text=t; l.Font=f; l.ForeColor=fg; l.BackColor=bg
-        l.Location=dotNetObject "System.Drawing.Point" px py
-        l.Size=dotNetObject "System.Drawing.Size" pw 15
-        p.Controls.Add l
-    )
-
-    mkLbl pnl_left "SYSTEM" font_small TKN_C_TEXT2 TKN_C_BG2 8 y 55
-    global tkn_ui_cb_system = dotNetObject DN_CB
-    tkn_ui_cb_system.Font=font_mono; tkn_ui_cb_system.BackColor=TKN_C_BG; tkn_ui_cb_system.ForeColor=TKN_C_TEXT
-    tkn_ui_cb_system.Location=dotNetObject "System.Drawing.Point" 65 y
-    tkn_ui_cb_system.Size=dotNetObject "System.Drawing.Size" 267 20
-    tkn_ui_cb_system.DropDownStyle=(dotNetClass "System.Windows.Forms.ComboBoxStyle").DropDownList
-    for s in TEKTON.valid_systems do tkn_ui_cb_system.Items.Add s
-    if prev_sys < tkn_ui_cb_system.Items.Count then tkn_ui_cb_system.SelectedIndex = prev_sys else tkn_ui_cb_system.SelectedIndex = 0
-    pnl_left.Controls.Add tkn_ui_cb_system
-    y += 22
-
-    mkLbl pnl_left "FAMILY" font_small TKN_C_TEXT2 TKN_C_BG2 8 y 55
-    global tkn_ui_cb_family = dotNetObject DN_CB
-    tkn_ui_cb_family.Font=font_mono; tkn_ui_cb_family.BackColor=TKN_C_BG; tkn_ui_cb_family.ForeColor=TKN_C_TEXT
-    tkn_ui_cb_family.Location=dotNetObject "System.Drawing.Point" 65 y
-    tkn_ui_cb_family.Size=dotNetObject "System.Drawing.Size" 267 20
-    tkn_ui_cb_family.DropDownStyle=(dotNetClass "System.Windows.Forms.ComboBoxStyle").DropDownList
-    pnl_left.Controls.Add tkn_ui_cb_family
-    y += 22
-
-    mkLbl pnl_left "LEVEL" font_small TKN_C_TEXT2 TKN_C_BG2 8 y 55
-    global tkn_ui_cb_level = dotNetObject DN_CB
-    tkn_ui_cb_level.Font=font_mono; tkn_ui_cb_level.BackColor=TKN_C_BG; tkn_ui_cb_level.ForeColor=TKN_C_TEXT
-    tkn_ui_cb_level.Location=dotNetObject "System.Drawing.Point" 65 y
-    tkn_ui_cb_level.Size=dotNetObject "System.Drawing.Size" 267 20
-    tkn_ui_cb_level.DropDownStyle=(dotNetClass "System.Windows.Forms.ComboBoxStyle").DropDownList
-    for n in TEKTON.levels do tkn_ui_cb_level.Items.Add n[1]
-    if prev_lvl < tkn_ui_cb_level.Items.Count then tkn_ui_cb_level.SelectedIndex = prev_lvl else tkn_ui_cb_level.SelectedIndex = 0
-    pnl_left.Controls.Add tkn_ui_cb_level
-    y += 22
-
-    mkLbl pnl_left "FINISH" font_small TKN_C_TEXT2 TKN_C_BG2 8 y 55
-    global tkn_ui_cb_finish = dotNetObject DN_CB
-    tkn_ui_cb_finish.Font=font_mono; tkn_ui_cb_finish.BackColor=TKN_C_BG; tkn_ui_cb_finish.ForeColor=TKN_C_TEXT
-    tkn_ui_cb_finish.Location=dotNetObject "System.Drawing.Point" 65 y
-    tkn_ui_cb_finish.Size=dotNetObject "System.Drawing.Size" 267 20
-    tkn_ui_cb_finish.DropDownStyle=(dotNetClass "System.Windows.Forms.ComboBoxStyle").DropDownList
-    for f in TEKTON.valid_finishes do tkn_ui_cb_finish.Items.Add f
-    if prev_fin < tkn_ui_cb_finish.Items.Count then tkn_ui_cb_finish.SelectedIndex = prev_fin else tkn_ui_cb_finish.SelectedIndex = 0
-    pnl_left.Controls.Add tkn_ui_cb_finish
-    y += 26
-
-    local cur_sys = tkn_ui_cb_system.SelectedItem
-    tkn_ui_cb_family.Items.Clear()
-    for i = 1 to TEKTON.family_names.count do (
-        if (toLower TEKTON.family_systems[i]) == (toLower cur_sys) then (
-            tkn_ui_cb_family.Items.Add TEKTON.family_names[i]
+    
+    fn tkn_ui_rebuildLevelDropdown =
+    (
+        try
+        (
+            if tkn_ui_cb_level != undefined then
+            (
+                tkn_ui_cb_level.items.clear()
+                for lvl in TEKTON.levels do
+                    tkn_ui_cb_level.items.add (lvl[1] as string)
+                if tkn_ui_cb_level.items.count > 0 then
+                (
+                    if prev_lvl <= tkn_ui_cb_level.items.count then
+                        tkn_ui_cb_level.selectedIndex = prev_lvl - 1
+                    else
+                        tkn_ui_cb_level.selectedIndex = 0
+                )
+            )
         )
+        catch (tkn_logError ("rebuildLevelDropdown error: " + (getCurrentException())))
     )
-    if tkn_ui_cb_family.Items.Count > 0 then tkn_ui_cb_family.SelectedIndex = 0
-
-    -- TAG buttons
-    local btn_tag = dotNetObject DN_Button
-    btn_tag.Text="[ TAG ]"; btn_tag.Font=font_bold
-    btn_tag.FlatStyle=DN_Flat.Flat
-    btn_tag.FlatAppearance.BorderColor=TKN_C_ACCENT
-    btn_tag.BackColor=TKN_C_ACCENT; btn_tag.ForeColor=TKN_C_WHITE
-    btn_tag.Location=dotNetObject "System.Drawing.Point" 8 y
-    btn_tag.Size=dotNetObject "System.Drawing.Size" 100 24
-    pnl_left.Controls.Add btn_tag
-
-    local btn_byname = dotNetObject DN_Button
-    btn_byname.Text="[ TAG BY NAME ]"; btn_byname.Font=font_bold
-    btn_byname.FlatStyle=DN_Flat.Flat
-    btn_byname.FlatAppearance.BorderColor=TKN_C_BLUE
-    btn_byname.BackColor=TKN_C_BG; btn_byname.ForeColor=TKN_C_BLUE
-    btn_byname.Location=dotNetObject "System.Drawing.Point" 114 y
-    btn_byname.Size=dotNetObject "System.Drawing.Size" 120 24
-    pnl_left.Controls.Add btn_byname
-
-    local btn_existing = dotNetObject DN_Button
-    btn_existing.Text="[ EXISTING ]"; btn_existing.Font=font_bold
-    btn_existing.FlatStyle=DN_Flat.Flat
-    btn_existing.FlatAppearance.BorderColor=TKN_C_TEXT2
-    btn_existing.BackColor=TKN_C_BG; btn_existing.ForeColor=TKN_C_TEXT2
-    btn_existing.Location=dotNetObject "System.Drawing.Point" 240 y
-    btn_existing.Size=dotNetObject "System.Drawing.Size" 92 24
-    pnl_left.Controls.Add btn_existing
-    y += 30
-
-    dotNet.addEventHandler tkn_ui_cb_system "SelectedIndexChanged" tkn_ui_onSysChanged
-    dotNet.addEventHandler btn_tag          "Click"                 tkn_ui_onTagClick
-    dotNet.addEventHandler btn_byname       "Click"                 tkn_ui_onTagByNameClick
-    dotNet.addEventHandler btn_existing     "Click"                 tkn_ui_onExistingClick
-
-    -- INSPECTOR
-    local lbl_sec3 = dotNetObject DN_Label
-    lbl_sec3.Text="-- INSPECTOR --"; lbl_sec3.Font=font_bold
-    lbl_sec3.ForeColor=TKN_C_ACCENT; lbl_sec3.BackColor=TKN_C_BG2
-    lbl_sec3.Location=dotNetObject "System.Drawing.Point" 8 y
-    lbl_sec3.Size=dotNetObject "System.Drawing.Size" 324 16
-    pnl_left.Controls.Add lbl_sec3
-    y += 20
-
-    if tkn_selected_obj != undefined and (tkn_isTekton tkn_selected_obj) then (
-        local props = tkn_getAllPropsComplete tkn_selected_obj
-        for prop in props do (
-            local lp = dotNetObject DN_Label
-            lp.Text      = (prop[1] + ":  " + prop[2] as string)
-            lp.Font      = font_mono
-            lp.ForeColor = TKN_C_TEXT
-            lp.BackColor = TKN_C_BG2
-            lp.Location  = dotNetObject "System.Drawing.Point" 8 y
-            lp.Size      = dotNetObject "System.Drawing.Size" 324 15
-            pnl_left.Controls.Add lp
-            y += 15
+    
+    fn tkn_ui_rebuildFinishDropdown =
+    (
+        try
+        (
+            if tkn_ui_cb_finish != undefined then
+            (
+                tkn_ui_cb_finish.items.clear()
+                for fin in TEKTON.valid_finishes do
+                    tkn_ui_cb_finish.items.add (fin as string)
+                if tkn_ui_cb_finish.items.count > 0 then
+                (
+                    if prev_fin <= tkn_ui_cb_finish.items.count then
+                        tkn_ui_cb_finish.selectedIndex = prev_fin - 1
+                    else
+                        tkn_ui_cb_finish.selectedIndex = 0
+                )
+            )
         )
-    ) else (
-        local lns = dotNetObject DN_Label
-        lns.Text      = "Select a tagged object to inspect."
-        lns.Font      = font_mono
-        lns.ForeColor = TKN_C_TEXT2
-        lns.BackColor = TKN_C_BG2
-        lns.Location  = dotNetObject "System.Drawing.Point" 8 y
-        lns.Size      = dotNetObject "System.Drawing.Size" 324 15
-        pnl_left.Controls.Add lns
+        catch (tkn_logError ("rebuildFinishDropdown error: " + (getCurrentException())))
     )
-
-    -- ACTION BUTTONS
-    local sel_systems = tkn_ui_getSelectedSystems()
-    local has_sel     = sel_systems.count > 0
-    local act_labels = #("SELECT", "FREEZE", "ISOLATE", "HIDE", "COLOR")
-    local act_fns    = #(tkn_ui_onSelectSystem, tkn_ui_onFreezeSystem, tkn_ui_onIsolateSystem, tkn_ui_onHideSystem, tkn_ui_onColorSystem)
-    local act_w      = 62
-    local act_gap    = 3
-    local act_y      = 432
-
-    for i = 1 to 5 do (
-        local abtn = dotNetObject DN_Button
-        abtn.Text      = act_labels[i]
-        abtn.Font      = font_small
-        abtn.FlatStyle = DN_Flat.Flat
-        abtn.FlatAppearance.BorderColor = if has_sel then TKN_C_ACCENT else TKN_C_BORDER
-        abtn.BackColor = TKN_C_BG
-        abtn.ForeColor = if has_sel then TKN_C_ACCENT else TKN_C_TEXT2
-        abtn.Location  = dotNetObject "System.Drawing.Point" (act_gap + (i-1) * (act_w + act_gap)) act_y
-        abtn.Size      = dotNetObject "System.Drawing.Size" act_w 22
-        abtn.Enabled   = has_sel
-        pnl_left.Controls.Add abtn
-        if has_sel then dotNet.addEventHandler abtn "Click" act_fns[i]
+    
+    fn tkn_ui_rebuildInspector obj =
+    (
+        try
+        (
+            if tkn_ui_inspector_panel != undefined then
+            (
+                tkn_ui_inspector_panel.controls.clear()
+                if obj != undefined and isValidNode obj then
+                (
+                    local y_pos = 10
+                    local lbl_id = dotNetObject "System.Windows.Forms.Label"
+                    lbl_id.Text = "ID: " + (tkn_getProperty obj "tkn_id")
+                    lbl_id.Location = dotNetObject "System.Drawing.Point" 10 y_pos
+                    lbl_id.Size = dotNetObject "System.Drawing.Size" 300 20
+                    lbl_id.ForeColor = TKN_C_TEXT
+                    lbl_id.BackColor = drawing.color.transparent
+                    tkn_ui_inspector_panel.controls.add lbl_id
+                    y_pos = y_pos + 25
+                    
+                    local lbl_sys = dotNetObject "System.Windows.Forms.Label"
+                    lbl_sys.Text = "System: " + (tkn_getProperty obj "tkn_system")
+                    lbl_sys.Location = dotNetObject "System.Drawing.Point" 10 y_pos
+                    lbl_sys.Size = dotNetObject "System.Drawing.Size" 300 20
+                    lbl_sys.ForeColor = TKN_C_TEXT
+                    lbl_sys.BackColor = drawing.color.transparent
+                    tkn_ui_inspector_panel.controls.add lbl_sys
+                    y_pos = y_pos + 25
+                    
+                    local lbl_fam = dotNetObject "System.Windows.Forms.Label"
+                    lbl_fam.Text = "Family: " + (tkn_getProperty obj "tkn_family")
+                    lbl_fam.Location = dotNetObject "System.Drawing.Point" 10 y_pos
+                    lbl_fam.Size = dotNetObject "System.Drawing.Size" 300 20
+                    lbl_fam.ForeColor = TKN_C_TEXT
+                    lbl_fam.BackColor = drawing.color.transparent
+                    tkn_ui_inspector_panel.controls.add lbl_fam
+                    y_pos = y_pos + 25
+                    
+                    local lbl_lvl = dotNetObject "System.Windows.Forms.Label"
+                    lbl_lvl.Text = "Level: " + (tkn_getProperty obj "tkn_level")
+                    lbl_lvl.Location = dotNetObject "System.Drawing.Point" 10 y_pos
+                    lbl_lvl.Size = dotNetObject "System.Drawing.Size" 300 20
+                    lbl_lvl.ForeColor = TKN_C_TEXT
+                    lbl_lvl.BackColor = drawing.color.transparent
+                    tkn_ui_inspector_panel.controls.add lbl_lvl
+                )
+            )
+        )
+        catch (tkn_logError ("rebuildInspector error: " + (getCurrentException())))
     )
-
-    -- RIGHT PANEL - 3x7 launcher grid
-    local pnl_right = dotNetObject DN_Panel
-    pnl_right.Location  = dotNetObject "System.Drawing.Point" 342 0
-    pnl_right.Size      = dotNetObject "System.Drawing.Size" 238 460
-    pnl_right.BackColor = TKN_C_BG
-    panel.Controls.Add pnl_right
-
-    local lbl_r = dotNetObject DN_Label
-    lbl_r.Text="-- SYSTEMS --"; lbl_r.Font=font_bold
-    lbl_r.ForeColor=TKN_C_ACCENT; lbl_r.BackColor=TKN_C_BG
-    lbl_r.Location=dotNetObject "System.Drawing.Point" 4 6
-    lbl_r.Size=dotNetObject "System.Drawing.Size" 230 14
-    pnl_right.Controls.Add lbl_r
-
-    local sys_labels = #("STRUCT","STEEL","MASONRY","FOUND","INSUL","FLOOR","PLASTER","CLAD","ROOF","OPENINGS","METAL","PLUMBING","DRAINAGE","ELEC","GAS","SITE","EQUIP","VEGET","GENERIC")
-    local btn_w   = 74
-    local btn_h   = 56
-    local gap     = 3
-    local start_y = 24
-
-    for i = 1 to TEKTON.valid_systems.count do (
-        local sys      = TEKTON.valid_systems[i]
-        local lbl      = sys_labels[i]
-        local objs     = tkn_filterBySystem sys
-        local has_objs = objs.count > 0
-        local sc       = tkn_getSystemColor sys
-        local dc       = (dotNetClass "System.Drawing.Color").FromArgb sc.r sc.g sc.b
-        local dim      = (dotNetClass "System.Drawing.Color").FromArgb (sc.r/5) (sc.g/5) (sc.b/5)
-        local col_i    = mod (i-1) 3
-        local row_i    = (i-1) / 3
-        local bx       = gap + col_i * (btn_w + gap)
-        local btn_y    = start_y + row_i * (btn_h + gap)
-
-        local btn = dotNetObject DN_Button
-        btn.Text      = (lbl + "\n" + (if has_objs then ("[" + objs.count as string + "]") else "---"))
-        btn.Font      = font_btn
-        btn.FlatStyle = DN_Flat.Flat
-        btn.FlatAppearance.BorderColor = dc
-        btn.BackColor = if has_objs then dim else TKN_C_BG
-        btn.ForeColor = if has_objs then dc else TKN_C_TEXT2
-        btn.Location  = dotNetObject "System.Drawing.Point" bx btn_y
-        btn.Size      = dotNetObject "System.Drawing.Size" btn_w btn_h
-        btn.Tag       = dotNetObject "System.String" (copy sys)
-        pnl_right.Controls.Add btn
-        dotNet.addEventHandler btn "Click" tkn_ui_onLauncherClick
+    
+    fn tkn_ui_onSelectionChanged =
+    (
+        try
+        (
+            if tkn_ui_sel_lock then return undefined
+            local new_sel = if selection.count > 0 then selection[1] else undefined
+            if new_sel != tkn_selected_obj then
+            (
+                tkn_selected_obj = new_sel
+                tkn_ui_rebuildInspector tkn_selected_obj
+            )
+        )
+        catch (tkn_logError ("onSelectionChanged error: " + (getCurrentException())))
+    )
+    
+    fn tkn_ui_onTagClick s e =
+    (
+        try
+        (
+            local sys = if tkn_ui_cb_system.selectedIndex >= 0 then (tkn_ui_cb_system.items.item[tkn_ui_cb_system.selectedIndex] as string) else ""
+            local fam = if tkn_ui_cb_family.selectedIndex >= 0 then (tkn_ui_cb_family.items.item[tkn_ui_cb_family.selectedIndex] as string) else undefined
+            local lvl = if tkn_ui_cb_level.selectedIndex >= 0 then (tkn_ui_cb_level.items.item[tkn_ui_cb_level.selectedIndex] as string) else ""
+            local fin = if tkn_ui_cb_finish.selectedIndex >= 0 then (tkn_ui_cb_finish.items.item[tkn_ui_cb_finish.selectedIndex] as string) else ""
+            
+            if sys == "" then (messageBox "Select a System first."; return undefined)
+            if fam == undefined then (messageBox "Select a Family first."; return undefined)
+            if lvl == "" then (messageBox "Select a Level first."; return undefined)
+            
+            local to_tag = #()
+            local to_retag = #()
+            for obj in selection do
+            (
+                local existing_id = tkn_getProperty obj "tkn_id"
+                if existing_id == "" then
+                    append to_tag obj
+                else
+                    append to_retag obj
+            )
+            
+            if to_retag.count > 0 then
+            (
+                local confirm = queryBox ("Re-tag " + to_retag.count as string + " tagged objects?") title:"TEKTON"
+                if not confirm then return undefined
+            )
+            
+            tkn_tagMultiple (to_tag + to_retag) sys fam lvl fin "new" "" ""
+            tkn_ui_loadTab "SYSTEMS"
+        )
+        catch (tkn_logError ("onTagClick error: " + (getCurrentException())))
+    )
+    
+    fn tkn_ui_onTagByNameClick s e =
+    (
+        try
+        (
+            tkn_tagByName selection
+            tkn_ui_loadTab "SYSTEMS"
+        )
+        catch (tkn_logError ("onTagByNameClick error: " + (getCurrentException())))
+    )
+    
+    fn tkn_ui_onExistingClick s e =
+    (
+        try
+        (
+            tkn_tagExisting selection
+            tkn_ui_loadTab "SYSTEMS"
+        )
+        catch (tkn_logError ("onExistingClick error: " + (getCurrentException())))
+    )
+    
+    fn tkn_ui_onActionClick s e =
+    (
+        try
+        (
+            local action = s.Tag as string
+            local objs = for obj in selection where (tkn_getProperty obj "tkn_id") != "" collect obj
+            
+            case action of
+            (
+                "SELECT": tkn_selectBySystem objs
+                "FREEZE": for obj in objs do obj.isFrozen = true
+                "ISOLATE": (
+                    max select none
+                    select objs
+                    actionMan.executeAction 0 "311"
+                )
+                "HIDE": for obj in objs do obj.isHidden = true
+                "COLOR": tkn_applyColorsBySystem objs
+                "UNHIDE": unhide $*
+            )
+        )
+        catch (tkn_logError ("onActionClick error: " + (getCurrentException())))
+    )
+    
+    global tkn_ui_launcher_buttons = #()
+    global tkn_ui_vh_buttons = #()
+    global tkn_ui_ul_buttons = #()
+    
+    fn tkn_ui_handleLauncherClick =
+    (
+        try
+        (
+            local btn = this
+            local sys_name = btn.Tag as string
+            local objs = tkn_getObjectsBySystem sys_name
+            if objs.count > 0 then
+            (
+                tkn_ui_sel_lock = true
+                select objs
+                tkn_ui_sel_lock = false
+                if objs.count > 0 then
+                (
+                    tkn_selected_obj = objs[1]
+                    tkn_ui_rebuildInspector tkn_selected_obj
+                )
+            )
+        )
+        catch (tkn_logError ("handleLauncherClick error: " + (getCurrentException())))
+    )
+    
+    fn tkn_ui_handleSystemVHClick =
+    (
+        try
+        (
+            local btn = this
+            local sys_name = btn.Tag as string
+            local objs = tkn_getObjectsBySystem sys_name
+            local new_state = if objs.count > 0 then (not objs[1].isHidden) else false
+            for obj in objs do obj.isHidden = new_state
+        )
+        catch (tkn_logError ("handleSystemVHClick error: " + (getCurrentException())))
+    )
+    
+    fn tkn_ui_handleSystemULClick =
+    (
+        try
+        (
+            local btn = this
+            local sys_name = btn.Tag as string
+            local objs = tkn_getObjectsBySystem sys_name
+            local new_state = if objs.count > 0 then (not objs[1].isFrozen) else false
+            for obj in objs do obj.isFrozen = new_state
+        )
+        catch (tkn_logError ("handleSystemULClick error: " + (getCurrentException())))
+    )
+    
+    fn tkn_ui_createSystemsTab parent_panel =
+    (
+        try
+        (
+            tkn_ui_systems_tab = dotNetObject "System.Windows.Forms.Panel"
+            tkn_ui_systems_tab.Size = dotNetObject "System.Drawing.Size" 580 480
+            tkn_ui_systems_tab.Location = dotNetObject "System.Drawing.Point" 10 110
+            tkn_ui_systems_tab.BackColor = TKN_C_BG
+            
+            local left_panel = dotNetObject "System.Windows.Forms.Panel"
+            left_panel.Size = dotNetObject "System.Drawing.Size" 340 480
+            left_panel.Location = dotNetObject "System.Drawing.Point" 0 0
+            left_panel.BackColor = TKN_C_BG
+            left_panel.AutoScroll = true
+            
+            local y_pos = 10
+            local lbl_overview = dotNetObject "System.Windows.Forms.Label"
+            lbl_overview.Text = "SYSTEMS OVERVIEW"
+            lbl_overview.Location = dotNetObject "System.Drawing.Point" 10 y_pos
+            lbl_overview.Size = dotNetObject "System.Drawing.Size" 320 20
+            lbl_overview.ForeColor = TKN_C_ACCENT
+            lbl_overview.BackColor = drawing.color.transparent
+            left_panel.controls.add lbl_overview
+            y_pos = y_pos + 30
+            
+            tkn_ui_vh_buttons = #()
+            tkn_ui_ul_buttons = #()
+            
+            for sys in TEKTON.valid_systems do
+            (
+                local sys_row = dotNetObject "System.Windows.Forms.Panel"
+                sys_row.Size = dotNetObject "System.Drawing.Size" 320 25
+                sys_row.Location = dotNetObject "System.Drawing.Point" 10 y_pos
+                sys_row.BackColor = drawing.color.transparent
+                
+                local btn_vh = dotNetObject "System.Windows.Forms.Button"
+                btn_vh.Text = "V/H"
+                btn_vh.Size = dotNetObject "System.Drawing.Size" 40 20
+                btn_vh.Location = dotNetObject "System.Drawing.Point" 0 0
+                btn_vh.ForeColor = TKN_C_TEXT
+                btn_vh.BackColor = TKN_C_BG2
+                btn_vh.FlatStyle = btn_vh.FlatStyle.Flat
+                btn_vh.FlatAppearance.BorderColor = TKN_C_BORDER
+                btn_vh.Tag = sys
+                sys_row.controls.add btn_vh
+                append tkn_ui_vh_buttons btn_vh
+                
+                local btn_ul = dotNetObject "System.Windows.Forms.Button"
+                btn_ul.Text = "U/L"
+                btn_ul.Size = dotNetObject "System.Drawing.Size" 40 20
+                btn_ul.Location = dotNetObject "System.Drawing.Point" 45 0
+                btn_ul.ForeColor = TKN_C_TEXT
+                btn_ul.BackColor = TKN_C_BG2
+                btn_ul.FlatStyle = btn_ul.FlatStyle.Flat
+                btn_ul.FlatAppearance.BorderColor = TKN_C_BORDER
+                btn_ul.Tag = sys
+                sys_row.controls.add btn_ul
+                append tkn_ui_ul_buttons btn_ul
+                
+                local lbl_sys = dotNetObject "System.Windows.Forms.Label"
+                lbl_sys.Text = sys as string
+                lbl_sys.Location = dotNetObject "System.Drawing.Point" 90 2
+                lbl_sys.Size = dotNetObject "System.Drawing.Size" 230 20
+                lbl_sys.ForeColor = TKN_C_TEXT2
+                lbl_sys.BackColor = drawing.color.transparent
+                sys_row.controls.add lbl_sys
+                
+                left_panel.controls.add sys_row
+                y_pos = y_pos + 28
+            )
+            
+            for btn in tkn_ui_vh_buttons do
+                on btn click do tkn_ui_handleSystemVHClick.call btn
+            
+            for btn in tkn_ui_ul_buttons do
+                on btn click do tkn_ui_handleSystemULClick.call btn
+            
+            y_pos = y_pos + 20
+            local lbl_tag = dotNetObject "System.Windows.Forms.Label"
+            lbl_tag.Text = "TAG SELECTION"
+            lbl_tag.Location = dotNetObject "System.Drawing.Point" 10 y_pos
+            lbl_tag.Size = dotNetObject "System.Drawing.Size" 320 20
+            lbl_tag.ForeColor = TKN_C_ACCENT
+            lbl_tag.BackColor = drawing.color.transparent
+            left_panel.controls.add lbl_tag
+            y_pos = y_pos + 30
+            
+            tkn_ui_cb_system = dotNetObject "System.Windows.Forms.ComboBox"
+            tkn_ui_cb_system.Size = dotNetObject "System.Drawing.Size" 320 25
+            tkn_ui_cb_system.Location = dotNetObject "System.Drawing.Point" 10 y_pos
+            tkn_ui_cb_system.DropDownStyle = tkn_ui_cb_system.DropDownStyle.DropDownList
+            tkn_ui_cb_system.ForeColor = TKN_C_TEXT
+            tkn_ui_cb_system.BackColor = TKN_C_BG2
+            for s in TEKTON.valid_systems do tkn_ui_cb_system.items.add (s as string)
+            if prev_sys <= tkn_ui_cb_system.items.count then tkn_ui_cb_system.selectedIndex = prev_sys - 1
+            left_panel.controls.add tkn_ui_cb_system
+            y_pos = y_pos + 30
+            
+            on tkn_ui_cb_system selectedIndexChanged do
+            (
+                prev_sys = tkn_ui_cb_system.selectedIndex + 1
+                local sys_str = tkn_ui_cb_system.items.item[tkn_ui_cb_system.selectedIndex] as string
+                tkn_ui_rebuildFamilyDropdown sys_str
+            )
+            
+            tkn_ui_cb_family = dotNetObject "System.Windows.Forms.ComboBox"
+            tkn_ui_cb_family.Size = dotNetObject "System.Drawing.Size" 320 25
+            tkn_ui_cb_family.Location = dotNetObject "System.Drawing.Point" 10 y_pos
+            tkn_ui_cb_family.DropDownStyle = tkn_ui_cb_family.DropDownStyle.DropDownList
+            tkn_ui_cb_family.ForeColor = TKN_C_TEXT
+            tkn_ui_cb_family.BackColor = TKN_C_BG2
+            left_panel.controls.add tkn_ui_cb_family
+            y_pos = y_pos + 30
+            
+            on tkn_ui_cb_family selectedIndexChanged do (prev_fam = tkn_ui_cb_family.selectedIndex + 1)
+            
+            tkn_ui_cb_level = dotNetObject "System.Windows.Forms.ComboBox"
+            tkn_ui_cb_level.Size = dotNetObject "System.Drawing.Size" 320 25
+            tkn_ui_cb_level.Location = dotNetObject "System.Drawing.Point" 10 y_pos
+            tkn_ui_cb_level.DropDownStyle = tkn_ui_cb_level.DropDownStyle.DropDownList
+            tkn_ui_cb_level.ForeColor = TKN_C_TEXT
+            tkn_ui_cb_level.BackColor = TKN_C_BG2
+            left_panel.controls.add tkn_ui_cb_level
+            y_pos = y_pos + 30
+            
+            on tkn_ui_cb_level selectedIndexChanged do (prev_lvl = tkn_ui_cb_level.selectedIndex + 1)
+            
+            tkn_ui_cb_finish = dotNetObject "System.Windows.Forms.ComboBox"
+            tkn_ui_cb_finish.Size = dotNetObject "System.Drawing.Size" 320 25
+            tkn_ui_cb_finish.Location = dotNetObject "System.Drawing.Point" 10 y_pos
+            tkn_ui_cb_finish.DropDownStyle = tkn_ui_cb_finish.DropDownStyle.DropDownList
+            tkn_ui_cb_finish.ForeColor = TKN_C_TEXT
+            tkn_ui_cb_finish.BackColor = TKN_C_BG2
+            left_panel.controls.add tkn_ui_cb_finish
+            y_pos = y_pos + 35
+            
+            on tkn_ui_cb_finish selectedIndexChanged do (prev_fin = tkn_ui_cb_finish.selectedIndex + 1)
+            
+            tkn_ui_rebuildFamilyDropdown (if tkn_ui_cb_system.selectedIndex >= 0 then (tkn_ui_cb_system.items.item[tkn_ui_cb_system.selectedIndex] as string) else "")
+            tkn_ui_rebuildLevelDropdown()
+            tkn_ui_rebuildFinishDropdown()
+            
+            local btn_tag = dotNetObject "System.Windows.Forms.Button"
+            btn_tag.Text = "TAG"
+            btn_tag.Size = dotNetObject "System.Drawing.Size" 100 25
+            btn_tag.Location = dotNetObject "System.Drawing.Point" 10 y_pos
+            btn_tag.ForeColor = TKN_C_TEXT
+            btn_tag.BackColor = TKN_C_BLUE
+            btn_tag.FlatStyle = btn_tag.FlatStyle.Flat
+            btn_tag.FlatAppearance.BorderColor = TKN_C_BORDER
+            left_panel.controls.add btn_tag
+            
+            local btn_tag_name = dotNetObject "System.Windows.Forms.Button"
+            btn_tag_name.Text = "TAG BY NAME"
+            btn_tag_name.Size = dotNetObject "System.Drawing.Size" 100 25
+            btn_tag_name.Location = dotNetObject "System.Drawing.Point" 115 y_pos
+            btn_tag_name.ForeColor = TKN_C_TEXT
+            btn_tag_name.BackColor = TKN_C_BG2
+            btn_tag_name.FlatStyle = btn_tag_name.FlatStyle.Flat
+            btn_tag_name.FlatAppearance.BorderColor = TKN_C_BORDER
+            left_panel.controls.add btn_tag_name
+            
+            local btn_existing = dotNetObject "System.Windows.Forms.Button"
+            btn_existing.Text = "EXISTING"
+            btn_existing.Size = dotNetObject "System.Drawing.Size" 100 25
+            btn_existing.Location = dotNetObject "System.Drawing.Point" 220 y_pos
+            btn_existing.ForeColor = TKN_C_TEXT
+            btn_existing.BackColor = TKN_C_BG2
+            btn_existing.FlatStyle = btn_existing.FlatStyle.Flat
+            btn_existing.FlatAppearance.BorderColor = TKN_C_BORDER
+            left_panel.controls.add btn_existing
+            y_pos = y_pos + 35
+            
+            on btn_tag click do tkn_ui_onTagClick btn_tag (dotNetObject "System.EventArgs")
+            on btn_tag_name click do tkn_ui_onTagByNameClick btn_tag_name (dotNetObject "System.EventArgs")
+            on btn_existing click do tkn_ui_onExistingClick btn_existing (dotNetObject "System.EventArgs")
+            
+            local lbl_inspector = dotNetObject "System.Windows.Forms.Label"
+            lbl_inspector.Text = "INSPECTOR"
+            lbl_inspector.Location = dotNetObject "System.Drawing.Point" 10 y_pos
+            lbl_inspector.Size = dotNetObject "System.Drawing.Size" 320 20
+            lbl_inspector.ForeColor = TKN_C_ACCENT
+            lbl_inspector.BackColor = drawing.color.transparent
+            left_panel.controls.add lbl_inspector
+            y_pos = y_pos + 25
+            
+            tkn_ui_inspector_panel = dotNetObject "System.Windows.Forms.Panel"
+            tkn_ui_inspector_panel.Size = dotNetObject "System.Drawing.Size" 320 100
+            tkn_ui_inspector_panel.Location = dotNetObject "System.Drawing.Point" 10 y_pos
+            tkn_ui_inspector_panel.BackColor = TKN_C_BG2
+            left_panel.controls.add tkn_ui_inspector_panel
+            y_pos = y_pos + 110
+            
+            local lbl_actions = dotNetObject "System.Windows.Forms.Label"
+            lbl_actions.Text = "ACTIONS"
+            lbl_actions.Location = dotNetObject "System.Drawing.Point" 10 y_pos
+            lbl_actions.Size = dotNetObject "System.Drawing.Size" 320 20
+            lbl_actions.ForeColor = TKN_C_ACCENT
+            lbl_actions.BackColor = drawing.color.transparent
+            left_panel.controls.add lbl_actions
+            y_pos = y_pos + 25
+            
+            local action_btns = #("SELECT", "FREEZE", "ISOLATE", "HIDE", "COLOR", "UNHIDE ALL")
+            local x_pos = 10
+            for act in action_btns do
+            (
+                local btn = dotNetObject "System.Windows.Forms.Button"
+                btn.Text = act
+                btn.Size = dotNetObject "System.Drawing.Size" 100 25
+                btn.Location = dotNetObject "System.Drawing.Point" x_pos y_pos
+                btn.ForeColor = TKN_C_TEXT
+                btn.BackColor = TKN_C_BG2
+                btn.FlatStyle = btn.FlatStyle.Flat
+                btn.FlatAppearance.BorderColor = TKN_C_BORDER
+                btn.Tag = act
+                left_panel.controls.add btn
+                on btn click do tkn_ui_onActionClick btn (dotNetObject "System.EventArgs")
+                x_pos = x_pos + 105
+                if x_pos > 220 then (x_pos = 10; y_pos = y_pos + 30)
+            )
+            
+            local right_panel = dotNetObject "System.Windows.Forms.Panel"
+            right_panel.Size = dotNetObject "System.Drawing.Size" 238 480
+            right_panel.Location = dotNetObject "System.Drawing.Point" 342 0
+            right_panel.BackColor = TKN_C_BG
+            
+            local lbl_launcher = dotNetObject "System.Windows.Forms.Label"
+            lbl_launcher.Text = "LAUNCHER"
+            lbl_launcher.Location = dotNetObject "System.Drawing.Point" 10 10
+            lbl_launcher.Size = dotNetObject "System.Drawing.Size" 220 20
+            lbl_launcher.ForeColor = TKN_C_ACCENT
+            lbl_launcher.BackColor = drawing.color.transparent
+            right_panel.controls.add lbl_launcher
+            
+            tkn_ui_launcher_panel = dotNetObject "System.Windows.Forms.Panel"
+            tkn_ui_launcher_panel.Size = dotNetObject "System.Drawing.Size" 218 440
+            tkn_ui_launcher_panel.Location = dotNetObject "System.Drawing.Point" 10 40
+            tkn_ui_launcher_panel.BackColor = TKN_C_BG2
+            
+            tkn_ui_launcher_buttons = #()
+            
+            local launcher_y = 10
+            local launcher_x = 10
+            local col = 0
+            for sys in TEKTON.valid_systems do
+            (
+                local color_data = for c in TEKTON.system_colors where c[1] == sys collect c
+                local btn_color = if color_data.count > 0 then (dotNetObject "System.Drawing.Color" color_data[1][2] color_data[1][3] color_data[1][4]) else TKN_C_BG2
+                
+                local btn = dotNetObject "System.Windows.Forms.Button"
+                btn.Text = (substring (sys as string) 1 3)
+                btn.Size = dotNetObject "System.Drawing.Size" 60 50
+                btn.Location = dotNetObject "System.Drawing.Point" launcher_x launcher_y
+                btn.ForeColor = TKN_C_WHITE
+                btn.BackColor = btn_color
+                btn.FlatStyle = btn.FlatStyle.Flat
+                btn.FlatAppearance.BorderColor = TKN_C_BORDER
+                btn.Tag = sys
+                tkn_ui_launcher_panel.controls.add btn
+                append tkn_ui_launcher_buttons btn
+                
+                col = col + 1
+                launcher_x = launcher_x + 65
+                if col >= 3 then (col = 0; launcher_x = 10; launcher_y = launcher_y + 55)
+            )
+            
+            for btn in tkn_ui_launcher_buttons do
+                on btn click do tkn_ui_handleLauncherClick.call btn
+            
+            right_panel.controls.add tkn_ui_launcher_panel
+            
+            tkn_ui_systems_tab.controls.add left_panel
+            tkn_ui_systems_tab.controls.add right_panel
+            parent_panel.controls.add tkn_ui_systems_tab
+            
+            tkn_ui_rebuildInspector tkn_selected_obj
+            
+            tkn_logInfo "Module loaded: tkn_ui_systems.ms"
+        )
+        catch (tkn_logError ("createSystemsTab error: " + (getCurrentException())))
     )
 )
-
-tkn_logInfo "Module loaded: tkn_ui_systems.ms"
+catch (tkn_logError ("tkn_ui_systems.ms load error: " + (getCurrentException())))
