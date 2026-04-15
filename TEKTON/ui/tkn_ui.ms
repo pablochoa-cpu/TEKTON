@@ -19,17 +19,17 @@ try
     global TKN_C_RED
     global TKN_C_WHITE
     
-    TKN_C_BG = dotNetObject "System.Drawing.Color" 19 27 69
-    TKN_C_BG2 = dotNetObject "System.Drawing.Color" 27 38 96
-    TKN_C_BORDER = dotNetObject "System.Drawing.Color" 17 35 79
-    TKN_C_TEXT = dotNetObject "System.Drawing.Color" 224 224 224
-    TKN_C_TEXT2 = dotNetObject "System.Drawing.Color" 136 136 136
-    TKN_C_ACCENT = dotNetObject "System.Drawing.Color" 39 168 242
-    TKN_C_BLUE = dotNetObject "System.Drawing.Color" 10 127 194
-    TKN_C_YELLOW = dotNetObject "System.Drawing.Color" 255 184 0
-    TKN_C_GREEN = dotNetObject "System.Drawing.Color" 61 170 92
-    TKN_C_RED = dotNetObject "System.Drawing.Color" 204 51 0
-    TKN_C_WHITE = dotNetObject "System.Drawing.Color" 255 255 255
+TKN_C_BG = (dotNetClass "System.Drawing.Color").FromArgb 19 27 69
+TKN_C_BG2 = (dotNetClass "System.Drawing.Color").FromArgb 27 38 96
+TKN_C_BORDER = (dotNetClass "System.Drawing.Color").FromArgb 17 35 79
+TKN_C_TEXT = (dotNetClass "System.Drawing.Color").FromArgb 224 224 224
+TKN_C_TEXT2 = (dotNetClass "System.Drawing.Color").FromArgb 136 136 136
+TKN_C_ACCENT = (dotNetClass "System.Drawing.Color").FromArgb 39 168 242
+TKN_C_BLUE = (dotNetClass "System.Drawing.Color").FromArgb 10 127 194
+TKN_C_YELLOW = (dotNetClass "System.Drawing.Color").FromArgb 255 184 0
+TKN_C_GREEN = (dotNetClass "System.Drawing.Color").FromArgb 61 170 92
+TKN_C_RED = (dotNetClass "System.Drawing.Color").FromArgb 204 51 0
+TKN_C_WHITE = (dotNetClass "System.Drawing.Color").FromArgb 255 255 255
     
     global tkn_ui_loadTab
     global tkn_ui_tab_buttons = #()
@@ -60,12 +60,11 @@ try
         catch (tkn_logError ("loadTab error: " + (getCurrentException())))
     )
     
-    fn tkn_ui_handleTabClick =
+    fn tkn_ui_handleTabClick s e =
     (
         try
         (
-            local btn = this
-            local clicked_tab = btn.Tag as string
+            local clicked_tab = s.Tag as string
             tkn_ui_loadTab clicked_tab
             for b in tkn_ui_tab_buttons do
             (
@@ -73,6 +72,16 @@ try
             )
         )
         catch (tkn_logError ("handleTabClick error: " + (getCurrentException())))
+    )
+    
+    fn tkn_ui_handleFormClosed s e =
+    (
+        try
+        (
+            callbacks.removeScripts id:#TKN_UI_sel
+            tkn_logInfo "UI closed."
+        )
+        catch()
     )
     
     fn tkn_showUI =
@@ -91,6 +100,8 @@ try
             tkn_ui_floater.FormBorderStyle = tkn_ui_floater.FormBorderStyle.Sizable
             tkn_ui_floater.StartPosition = tkn_ui_floater.StartPosition.CenterScreen
             
+            dotNet.addEventHandler tkn_ui_floater "FormClosed" tkn_ui_handleFormClosed
+            
             tkn_ui_main_panel = dotNetObject "System.Windows.Forms.Panel"
             tkn_ui_main_panel.Size = dotNetObject "System.Drawing.Size" 600 650
             tkn_ui_main_panel.Location = dotNetObject "System.Drawing.Point" 0 0
@@ -106,7 +117,7 @@ try
             lbl_title.Location = dotNetObject "System.Drawing.Point" 20 10
             lbl_title.Size = dotNetObject "System.Drawing.Size" 150 20
             lbl_title.ForeColor = TKN_C_TEXT
-            lbl_title.BackColor = drawing.color.transparent
+            lbl_title.BackColor = (dotNetClass "System.Drawing.Color").Transparent
             header_panel.controls.add lbl_title
             
             local lbl_project = dotNetObject "System.Windows.Forms.Label"
@@ -114,7 +125,7 @@ try
             lbl_project.Location = dotNetObject "System.Drawing.Point" 120 10
             lbl_project.Size = dotNetObject "System.Drawing.Size" 200 20
             lbl_project.ForeColor = TKN_C_TEXT
-            lbl_project.BackColor = drawing.color.transparent
+            lbl_project.BackColor = (dotNetClass "System.Drawing.Color").Transparent
             header_panel.controls.add lbl_project
             
             local lbl_err = dotNetObject "System.Windows.Forms.Label"
@@ -122,7 +133,7 @@ try
             lbl_err.Location = dotNetObject "System.Drawing.Point" 445 10
             lbl_err.Size = dotNetObject "System.Drawing.Size" 60 20
             lbl_err.ForeColor = TKN_C_RED
-            lbl_err.BackColor = drawing.color.transparent
+            lbl_err.BackColor = (dotNetClass "System.Drawing.Color").Transparent
             header_panel.controls.add lbl_err
             
             local lbl_wrn = dotNetObject "System.Windows.Forms.Label"
@@ -130,7 +141,7 @@ try
             lbl_wrn.Location = dotNetObject "System.Drawing.Point" 520 10
             lbl_wrn.Size = dotNetObject "System.Drawing.Size" 60 20
             lbl_wrn.ForeColor = TKN_C_YELLOW
-            lbl_wrn.BackColor = drawing.color.transparent
+            lbl_wrn.BackColor = (dotNetClass "System.Drawing.Color").Transparent
             header_panel.controls.add lbl_wrn
             
             local tab_bar = dotNetObject "System.Windows.Forms.Panel"
@@ -143,6 +154,19 @@ try
             local x_pos = 20
             
             tkn_ui_tab_buttons = #()
+            
+            local footer_panel = dotNetObject "System.Windows.Forms.Panel"
+            footer_panel.Size = dotNetObject "System.Drawing.Size" 600 30
+            footer_panel.Location = dotNetObject "System.Drawing.Point" 0 600
+            footer_panel.BackColor = TKN_C_BG2
+            
+            local lbl_footer = dotNetObject "System.Windows.Forms.Label"
+            lbl_footer.Text = "[ INITIALIZE / LOAD PROJECT ]"
+            lbl_footer.Location = dotNetObject "System.Drawing.Point" 200 5
+            lbl_footer.Size = dotNetObject "System.Drawing.Size" 200 20
+            lbl_footer.ForeColor = TKN_C_ACCENT
+            lbl_footer.BackColor = (dotNetClass "System.Drawing.Color").Transparent
+            footer_panel.controls.add lbl_footer
             
             for tab in tabs do
             (
@@ -160,32 +184,21 @@ try
                 x_pos = x_pos + tab_width + 5
             )
             
-            for btn in tkn_ui_tab_buttons do
-                on btn click do tkn_ui_handleTabClick.call btn
-            
-            local footer_panel = dotNetObject "System.Windows.Forms.Panel"
-            footer_panel.Size = dotNetObject "System.Drawing.Size" 600 30
-            footer_panel.Location = dotNetObject "System.Drawing.Point" 0 600
-            footer_panel.BackColor = TKN_C_BG2
-            
-            local lbl_footer = dotNetObject "System.Windows.Forms.Label"
-            lbl_footer.Text = "[ INITIALIZE / LOAD PROJECT ]"
-            lbl_footer.Location = dotNetObject "System.Drawing.Point" 200 5
-            lbl_footer.Size = dotNetObject "System.Drawing.Size" 200 20
-            lbl_footer.ForeColor = TKN_C_ACCENT
-            lbl_footer.BackColor = drawing.color.transparent
-            footer_panel.controls.add lbl_footer
-            
             tkn_ui_main_panel.controls.add header_panel
             tkn_ui_main_panel.controls.add tab_bar
             tkn_ui_main_panel.controls.add footer_panel
             
+            for btn in tkn_ui_tab_buttons do
+            (
+                dotNet.addEventHandler btn "Click" tkn_ui_handleTabClick
+            )
+            
             tkn_ui_createSystemsTab tkn_ui_main_panel
             tkn_ui_createLevelsTab tkn_ui_main_panel
             tkn_ui_createCheckerTab tkn_ui_main_panel
-            tkn_ui_createComputeTab tkn_ui_main_panel
-            tkn_ui_createLogTab tkn_ui_main_panel
-            tkn_ui_createSettingsTab tkn_ui_main_panel
+            --tkn_ui_createComputeTab tkn_ui_main_panel
+            --tkn_ui_createLogTab tkn_ui_main_panel
+            --tkn_ui_createSettingsTab tkn_ui_main_panel
             
             tkn_ui_loadTab "SYSTEMS"
             
@@ -195,16 +208,6 @@ try
             tkn_logInfo "UI opened."
         )
         catch (tkn_logError ("showUI error: " + (getCurrentException())))
-    )
-    
-    on tkn_ui_floater FormClosed do
-    (
-        try
-        (
-            callbacks.removeScripts id:#TKN_UI_sel
-            tkn_logInfo "UI closed."
-        )
-        catch()
     )
     
     tkn_logInfo "Module loaded: tkn_ui.ms"

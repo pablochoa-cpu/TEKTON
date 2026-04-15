@@ -129,9 +129,11 @@ fileIn (core_path + "tkn_checker.ms")
 fileIn (core_path + "tkn_compute.ms")
 fileIn (core_path + "tkn_ui.ms")
 fileIn (core_path + "tkn_ui_systems.ms")
-
-
-tkn_showUI()
+fileIn (core_path + "tkn_ui_levels.ms")
+fileIn (core_path + "tkn_ui_checker.ms")
+fileIn (core_path + "tkn_ui_compute.ms")
+fileIn (core_path + "tkn_ui_log.ms")
+fileIn (core_path + "tkn_ui_settings.ms")
 
 print "TEKTON: All modules loaded."
 print ("TEKTON: Version " + TEKTON.version + " ready.")

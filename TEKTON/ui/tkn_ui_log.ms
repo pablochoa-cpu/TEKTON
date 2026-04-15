@@ -19,7 +19,7 @@ try
             lbl.Location = dotNetObject "System.Drawing.Point" 20 20
             lbl.Size = dotNetObject "System.Drawing.Size" 540 30
             lbl.ForeColor = TKN_C_TEXT
-            lbl.BackColor = drawing.color.transparent
+            lbl.BackColor = (dotNetClass "System.Drawing.Color").Transparent
             lbl.Font = dotNetObject "System.Drawing.Font" "Segoe UI" 14.0
             tkn_ui_log_tab.controls.add lbl
             
